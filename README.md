@@ -1,109 +1,142 @@
-# 勤俭节约社会实践
+# 俭启未来 · 勤俭节约社会实践
 
-## 启动
+这是一个面向幼儿园、中小学、社区和乡村四类对象设计的社会实践展示与互动平台。项目把宣讲视频、课堂实践、居民调研和农事资源诊断放在同一个网页中，并通过 AI 小俭提供分对象、可约束、可执行的辅助讲解。
+
+## 项目亮点
+
+- **四类对象，四种实践方式**：不同人群使用不同界面和任务，不把所有参与者放进同一个模板。
+- **AI 小俭**：支持文字提问、语音输入和语音播报；会根据当前场景回答，并对中小学年级、社区数据和乡村农事建议进行约束。
+- **课堂可直接使用**：中小学页面包含横屏宣讲视频、随机题库、小组作答和 AI 讲解。
+- **社区扫码调研**：管理端生成答题入口，居民手机匿名答题，管理端展示统计图表并生成基于真实数据的分析建议。
+- **乡村资源诊断**：围绕作物、面积、生长阶段、资源来源和田间问题，帮助整理节水、减损和资源分配方案；涉及用药、病虫害、机械和食品安全时要求专业人员核验。
+- **独立适配 PC 与手机**：PC 使用横屏封面，手机使用 9:16 海报；社区答题端针对手机竖屏单独优化。
+- **封面互动**：支持粒子、流星和鼠标点击后壁纸扭曲的水波效果。
+
+## 四个实践场景
+
+### 1. 幼儿园：看动画认识粮食
+
+以幼儿能够理解的动画宣讲为主，不依赖复杂文字。孩子观看粮食主题视频，认识一粒米从田地到餐桌的过程，最后由老师引导孩子说出一个可以做到的节约行为。
+
+### 2. 中小学：课堂探究与分年级题库
+
+课堂先观看粮食主题视频，再按小学、初中、高中随机抽题。每个年级拥有独立题库，题目强调观察、证据、原因分析和行动设计。点击 AI 讲解时，小俭必须使用对应年级的表达和知识范围，并以题库标准答案为准。
+
+### 3. 社区：居民手机调研与数据分析
+
+管理端负责展示二维码、调研进度、投票统计和居民建议；居民通过手机答题端参与。答题不收集姓名、电话、住址等个人信息。AI 只使用当前调研数据，区分数据事实、合理解释和行动建议，不编造人数、比例或居民身份。
+
+居民答题入口示例：
+
+```text
+/practice/community/respond?room=COMMUNITY-01
+```
+
+### 4. 乡村：资源盘点与农事建议
+
+围绕灌溉节水、收储减损、农资与用能三个方向收集现场情况。农户可以填写多个问题，也可以使用语音输入。小俭输出资源盘点、分配优先级、今天执行、7天记录和需要专业确认的内容，不凭空编造天气、土壤、病虫害、产量、价格或节省金额。
+
+## 页面路由
+
+| 页面 | 地址 | 用途 |
+| --- | --- | --- |
+| 项目首页 | `/` | 封面和四类场景选择 |
+| 幼儿园 | `/practice/kindergarten` | 动画宣讲 |
+| 中小学 | `/practice/school` | 课堂视频、分年级题库和 AI 讲解 |
+| 社区管理端 | `/practice/community` | 二维码、投票统计、居民建议和 AI 报告 |
+| 社区手机答题端 | `/practice/community/respond?room=COMMUNITY-01` | 居民匿名答题 |
+| 乡村 | `/practice/rural` | 农事资源诊断和语音输入 |
+
+## 技术栈
+
+- React 18 + TypeScript
+- Vite
+- Express API
+- React Router
+- Three.js / React Three Fiber
+- DeepSeek Chat API 或 OpenAI API
+- Vercel 部署配置
+
+## 本地启动
+
+安装依赖：
+
+```bash
+npm install
+```
+
+启动前端和 API：
 
 ```bash
 npm run dev
 ```
 
-桌宠“小俭”支持文字对话、语音提问和语音播报。要启用大模型智能对话：
-
-1. 复制 `.env.example` 为 `.env`。
-2. 在 `.env` 中设置服务端环境变量 `OPENAI_API_KEY`。
-3. 重新运行 `npm run dev`。
-
-密钥只由 `api` 服务读取，不会发送到浏览器。未配置密钥或 AI 服务暂时不可用时，小俭会自动使用内置的节约主题知识回答。
-
-## 实践数据
-
-证据条目、匿名承诺、互动房间和投票会持久化到 `api/data/practice-store.json`。文件不存在时，服务只会创建一次明确标注为 Demo 的确定性种子；重启服务不会重置已有数据。
-
-可通过服务端环境变量 `PRACTICE_DATA_PATH` 修改数据文件位置。正式部署到无持久磁盘的 Serverless 环境时，应将当前 repository 实现替换为托管数据库，前端和 API 契约无需修改。
-
-`GET /api/health` 会检查实践数据仓储，并报告运行环境、AI 与管理员配置是否就绪；不会返回密钥。仓储不可读取或版本不兼容时返回 `503`。每个 API 响应都包含 `X-Request-Id`，服务日志仅记录请求编号、路径、状态和耗时，不记录正文、Cookie 或令牌。
-
-## 内容后台登录
-
-访问 `/admin` 后需要管理员登录。服务端使用 HttpOnly 会话 Cookie，内容写操作还会校验 CSRF Token；操作人由服务端会话确定，前端不能自行填写。
-
-本地开发未配置环境变量时使用 `admin / jianqi-demo` 作为明确标注的演示账号。生产环境不会启用该默认账号，必须设置 `ADMIN_USERNAME` 和 `ADMIN_PASSWORD`，并通过部署平台的密钥管理保存强密码。
-
-## 现场互动
-
-主持人访问 `/presenter`，点击“互动二维码”即可展示当前房间的真实二维码和实时票数。观众扫码进入 `/join/JIANQI-01`，无需注册即可匿名投票；同一设备重复提交不会增加票数，等待、暂停和结束状态也会阻止新投票。
-
-本地二维码使用当前网页地址生成。需要手机扫码联调时，请让手机与电脑处于同一网络，并使用电脑局域网地址访问网页；部署后二维码会自动使用正式域名。
-
-## 质量检查
+常用检查命令：
 
 ```bash
-npm run check:all
+npm run check       # TypeScript 检查
+npm run lint        # ESLint 检查
+npm run build       # 生产构建
+npm run check:all   # 依次执行以上三项
 ```
 
-该命令依次执行 TypeScript 检查、代码规范检查和生产构建。
+API 健康检查：
 
-启动前后端后运行 `npm run demo:check` 可检查健康接口、主持页、观众页和数据文件。完整的答辩前检查、数据备份、故障降级与回滚步骤见 `演示保障清单.md`。
-
-## 技术栈
-
-React + TypeScript + Vite，Express 提供服务端 API。
-
----
-
-# Vite template notes
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```bash
+npm run demo:check
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 环境变量
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+复制配置模板：
 
-export default tseslint.config({
-  extends: [
-    // other configs...
-    // Enable lint rules for React
-    reactX.configs['recommended-typescript'],
-    // Enable lint rules for React DOM
-    reactDom.configs.recommended,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```bash
+Copy-Item .env.example .env
 ```
+
+DeepSeek 配置示例：
+
+```env
+AI_PROVIDER=deepseek
+DEEPSEEK_API_KEY=请填写自己的密钥
+DEEPSEEK_MODEL=deepseek-chat
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=请设置强密码
+```
+
+密钥只能放在服务端环境变量中，不能写进 React 代码、不能上传 `.env`，也不要发到群聊或提交到 GitHub。生产环境应在 Vercel 的环境变量中配置。
+
+## 数据说明
+
+本地演示数据默认保存在 `api/data/practice-store.json`。社区投票、居民建议和实践数据在本地开发环境可持久化；Vercel Serverless 环境的本地文件不适合作为长期生产数据库。正式使用前应替换为托管数据库或其他可靠存储。
+
+## 部署说明
+
+项目已适配 Vercel：
+
+- 构建命令：`npm run build`
+- 输出目录：`dist`
+- 安装命令：`npm install`
+- API 入口：`api/index.ts`
+- SPA 和 API 重写配置：`vercel.json`
+
+当前项目仓库：
+
+```text
+https://github.com/sun797780-source/jianqi-future-social-practice
+```
+
+如果使用中国大陆微信访问自定义域名，域名可能受到 ICP 备案提示或拦截。项目演示阶段可以先使用 Vercel 默认域名；需要长期面向居民使用时，应按域名和服务器所在地办理相应备案。
+
+## 团队协作建议
+
+1. 修改页面前先确认属于哪一个场景，避免把四类对象的功能混在一起。
+2. 新增 AI 上下文时必须同步增加服务端约束，不要只在前端写提示词。
+3. 乡村建议不能编造农事数据，也不能直接替农户决定用药、施肥、灌溉量或设备参数。
+4. 社区分析必须以真实统计结果为依据，样本不足时明确说明限制。
+5. 提交前运行 `npm run check:all`，并至少检查一次 PC 和 390×844 手机尺寸。
+6. 大型视频和图片需要压缩后再上传，避免超过 GitHub 和部署平台的文件限制。
+
+## 项目目标
+
+让勤俭节约不只停留在口号，而是根据不同对象提供看得懂、参与得了、能记录、可复盘的社会实践工具：孩子从动画认识珍惜，学生在课堂中分析问题，居民用数据共同决策，农户用现场信息合理分配资源。
