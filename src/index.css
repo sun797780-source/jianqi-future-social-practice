@@ -283,6 +283,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--gold); outline-
 .pet-message { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 8px; align-items: start; margin-bottom: 13px; animation: petMessageIn .24s ease both; }
 .pet-message > span { padding-top: 8px; color: rgba(24,52,45,.46); font-size: 9px; text-align: center; }
 .pet-message p { width: fit-content; max-width: 100%; margin: 0; padding: 10px 12px; color: #214b40; border: 1px solid rgba(24,168,120,.1); border-radius: 5px 15px 15px 15px; background: #fff; box-shadow: 0 7px 20px rgba(39,83,70,.06); font-size: 12px; line-height: 1.7; }
+.pet-read-button, .rural-speak-button { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; padding: 4px 8px; border: 1px solid rgba(24,168,120,.18); border-radius: 12px; color: #287d67; background: #f2fbf6; cursor: pointer; font-size: 11px; }
+.pet-read-button:disabled, .rural-speak-button:disabled { color: #9aa9a3; background: #f2f5f3; cursor: not-allowed; }
 .pet-message.user { grid-template-columns: minmax(0, 1fr) 34px; }
 .pet-message.user > span { grid-column: 2; grid-row: 1; }
 .pet-message.user p { grid-column: 1; grid-row: 1; justify-self: end; color: #fff; border-color: transparent; border-radius: 15px 5px 15px 15px; background: linear-gradient(135deg, #1aab7b, #278fbc); }
