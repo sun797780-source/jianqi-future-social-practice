@@ -195,8 +195,9 @@ export async function getCommunitySurvey(surveyId = 'COMMUNITY-01', allowDemoFal
   }
 }
 
-export async function getCommunityAccessUrl(port = window.location.port || '5173') {
-  return request<{ origin: string; source: 'configured' | 'local-network' | 'request-host' }>(`/api/practice/access-url?port=${encodeURIComponent(port)}`)
+export async function getCommunityAccessUrl(port = window.location.port) {
+  const query = port ? `?port=${encodeURIComponent(port)}` : ''
+  return request<{ origin: string; source: 'configured' | 'local-network' | 'request-host' }>(`/api/practice/access-url${query}`)
 }
 
 export async function submitCommunitySurvey(surveyId: string, answers: number[], suggestion?: string) {

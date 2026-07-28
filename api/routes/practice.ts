@@ -60,7 +60,7 @@ router.get('/access-url', (req: Request, res: Response): void => {
     return
   }
   const portValue = Number(req.query.port)
-  const port = Number.isInteger(portValue) && portValue > 0 && portValue <= 65535 ? portValue : 5173
+  const requestedPort = Number.isInteger(portValue) && portValue > 0 && portValue <= 65535 ? String(portValue) : ''
   // Link-local addresses (169.254.x.x) are not stable phone-accessible LAN
   // addresses. They can appear first when Windows has no active network and
   // were previously ending up in the QR code. Prefer a private LAN address;
@@ -71,7 +71,11 @@ router.get('/access-url', (req: Request, res: Response): void => {
   })
   const preferred = addresses.find((address) => /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(address?.address ?? ''))
   const protocol = req.secure || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http'
-  const origin = preferred ? `${protocol}://${preferred.address}:${port}` : `${protocol}://${req.hostname}:${port}`
+  const forwardedHost = req.get('x-forwarded-host') ?? req.get('host') ?? req.hostname
+  const hostPort = forwardedHost.match(/:(\d+)$/)?.[1] ?? ''
+  const port = requestedPort || hostPort
+  const suffix = port && !((protocol === 'http' && port === '80') || (protocol === 'https' && port === '443')) ? `:${port}` : ''
+  const origin = preferred ? `${protocol}://${preferred.address}${suffix}` : `${protocol}://${req.hostname}${suffix}`
   res.status(200).json({ success: true, data: { origin, source: preferred ? 'local-network' : 'request-host' } })
 })
 
