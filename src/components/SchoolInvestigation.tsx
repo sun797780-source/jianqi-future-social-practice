@@ -66,7 +66,7 @@ export default function SchoolInvestigation() {
       <section className="school-video-card classroom-video-card" aria-labelledby="school-video-title">
         <div className="school-section-label"><span>01 / 先看视频</span><h2 id="school-video-title">一粒米，怎样来到我们的餐桌？</h2><small>视频播放结束后，解锁课堂题目。</small></div>
         <div className="classroom-video-wrap">
-          <video className="school-video" src="/kindergarten-mg-story.mp4" poster="/kindergarten-grain-poster.png" controls playsInline preload="metadata" onEnded={() => setWatched(true)} aria-label="粮食主题课堂宣讲视频" />
+          <video className="school-video" src="/kindergarten-mg-story-web.mp4" poster="/kindergarten-grain-poster.png" controls playsInline preload="metadata" onEnded={() => setWatched(true)} aria-label="粮食主题课堂宣讲视频" />
           {!watched && <div className="video-hint"><PlayCircle size={16} /> 看完视频，解锁课堂挑战</div>}
           {watched && <div className="video-done"><Check size={16} /> 视频看完了，开始抽取课堂题目</div>}
         </div>
