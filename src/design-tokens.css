@@ -1,0 +1,26 @@
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 72px;
+  --radius-sm: 4px;
+  --radius-md: 12px;
+  --radius-lg: 24px;
+  --motion-fast: 180ms;
+  --motion-standard: 320ms;
+  --motion-slow: 700ms;
+  --content-max: 1440px;
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--gold) 38%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 1ms;
+    --motion-standard: 1ms;
+    --motion-slow: 1ms;
+  }
+}
