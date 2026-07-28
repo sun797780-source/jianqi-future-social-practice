@@ -229,6 +229,10 @@ function publicPledge(pledge: StoredPledge): PracticePledge {
 
 class PracticeRepository {
   private readonly filePath = path.resolve(process.env.PRACTICE_DATA_PATH || path.join(process.cwd(), 'api', 'data', 'practice-store.json'))
+  // Vercel functions have an ephemeral/read-only deployment filesystem. Keep
+  // the demo store in the warm function instance there instead of making the
+  // public survey fail with a 503 when the JSON snapshot cannot be written.
+  private readonly memoryOnly = Boolean(process.env.VERCEL)
   private storePromise?: Promise<PracticeStore>
   private writeQueue: Promise<void> = Promise.resolve()
 
@@ -240,11 +244,12 @@ class PracticeRepository {
   private async readOrSeed(): Promise<PracticeStore> {
     try {
       const result = validateStore(JSON.parse(await readFile(this.filePath, 'utf8')))
-      if (result.migrated) await this.persist(result.store)
+      if (result.migrated && !this.memoryOnly) await this.persist(result.store)
       return result.store
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         const seed = createSeedStore()
+        if (this.memoryOnly) return seed
         try {
           await this.persist(seed)
           return seed
@@ -252,11 +257,13 @@ class PracticeRepository {
           throw new PracticeStorageError(persistError)
         }
       }
+      if (this.memoryOnly) return createSeedStore()
       throw new PracticeStorageError(error)
     }
   }
 
   private async persist(store: PracticeStore): Promise<void> {
+    if (this.memoryOnly) return
     const directory = path.dirname(this.filePath)
     const temporaryPath = `${this.filePath}.${process.pid}.tmp`
     await mkdir(directory, { recursive: true })
