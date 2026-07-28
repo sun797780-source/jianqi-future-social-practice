@@ -3,34 +3,7 @@ import { ChevronDown, Mic, MicOff, Send, Sparkles, Volume2, VolumeX, X } from "l
 import { useLocation } from "react-router-dom";
 import { getAudiencePractice } from "@/lib/content";
 import XiaoJianAvatar3D from "@/components/XiaoJianAvatar3D";
-
-type SpeechRecognitionEventLike = Event & {
-  results: ArrayLike<{ 0: { transcript: string } }>;
-};
-
-type SpeechRecognitionErrorEventLike = Event & {
-  error: string;
-};
-
-type SpeechRecognitionLike = EventTarget & {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  start: () => void;
-  stop: () => void;
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
-  onend: (() => void) | null;
-};
-
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
-
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  }
-}
+import { primeSpeechSynthesis, speakChineseAutomatically, startChineseDictation, stopSpeech, supportsSpeechRecognition, supportsSpeechSynthesis } from "@/lib/voiceRuntime";
 
 type PetMessage = {
   id: number;
@@ -91,28 +64,6 @@ function getInitialPosition(): PetPosition {
   }
 }
 
-function selectSunnyFemaleVoice(voices: SpeechSynthesisVoice[]) {
-  const preferredNames = ["xiaoxiao", "xiaoyi", "xiaohan", "xiaomeng", "xiaorui", "tingting", "lili", "meijia", "sin-ji", "female", "女声"];
-  const maleNames = ["yunxi", "yunyang", "yunjian", "yunhao", "kangkang", "male", "男声"];
-  return [...voices]
-    .map((voice) => {
-      const name = voice.name.toLowerCase();
-      const lang = voice.lang.toLowerCase();
-      let score = lang === "zh-cn" ? 100 : lang.startsWith("zh") ? 70 : 0;
-      preferredNames.forEach((keyword, index) => {
-        if (name.includes(keyword)) score += 70 - index;
-      });
-      maleNames.forEach((keyword) => {
-        if (name.includes(keyword)) score -= 80;
-      });
-      if (name.includes("natural") || name.includes("online")) score += 12;
-      if (voice.localService) score += 4;
-      if (voice.default) score += 2;
-      return { voice, score };
-    })
-    .sort((a, b) => b.score - a.score)[0]?.voice;
-}
-
 const routeContexts: Record<string, RouteContext> = {
   home: {
     label: "实践入口",
@@ -171,7 +122,7 @@ export default function XiaoJianPet() {
   const [aiMode, setAiMode] = useState<"online" | "local">("online");
   const [position, setPosition] = useState<PetPosition>(getInitialPosition);
   const [messages, setMessages] = useState<PetMessage[]>([{ id: 1, role: "pet", text: context.greeting }]);
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const recognitionRef = useRef<{ stop: () => void } | null>(null);
   const messageId = useRef(2);
   const replyTimerRef = useRef<number | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
@@ -180,11 +131,10 @@ export default function XiaoJianPet() {
   const previousPathRef = useRef(location.pathname);
   const dragRef = useRef<DragState | null>(null);
   const suppressClickRef = useRef(false);
-  const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const requestRef = useRef<AbortController | null>(null);
 
-  const recognitionSupported = typeof window !== "undefined" && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
-  const speechSupported = typeof window !== "undefined" && "speechSynthesis" in window;
+  const recognitionSupported = supportsSpeechRecognition();
+  const speechSupported = supportsSpeechSynthesis();
   const busy = status === "thinking";
   const dockLeft = position.x < window.innerWidth / 2;
   const dialogWidth = Math.min(390, window.innerWidth - 32);
@@ -202,15 +152,6 @@ export default function XiaoJianPet() {
   }, [context, location.pathname]);
 
   useEffect(() => {
-    const updateVoice = () => {
-      voiceRef.current = selectSunnyFemaleVoice(window.speechSynthesis?.getVoices() ?? []) ?? null;
-    };
-    updateVoice();
-    window.speechSynthesis?.addEventListener("voiceschanged", updateVoice);
-    return () => window.speechSynthesis?.removeEventListener("voiceschanged", updateVoice);
-  }, []);
-
-  useEffect(() => {
     const keepInViewport = () => setPosition((current) => clampPosition(current));
     window.addEventListener("resize", keepInViewport);
     return () => window.removeEventListener("resize", keepInViewport);
@@ -219,7 +160,7 @@ export default function XiaoJianPet() {
   useEffect(() => {
     localStorage.setItem("xiaojian-speech", speechEnabled ? "on" : "off");
     if (!speechEnabled) {
-      window.speechSynthesis?.cancel();
+      stopSpeech();
       setStatus((current) => current === "speaking" ? "idle" : current);
     }
   }, [speechEnabled]);
@@ -248,35 +189,25 @@ export default function XiaoJianPet() {
     if (replyTimerRef.current) window.clearTimeout(replyTimerRef.current);
     recognitionRef.current?.stop();
     requestRef.current?.abort();
-    window.speechSynthesis?.cancel();
+    stopSpeech();
   }, []);
 
   const speak = (text: string) => {
-    const spokenText = cleanAssistantText(text);
     if (!speechEnabled || !speechSupported) {
       setStatus("idle");
       return;
     }
-    if (!spokenText) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(spokenText);
-    utterance.lang = "zh-CN";
-    utterance.rate = 1.08;
-    utterance.pitch = 1.16;
-    utterance.volume = 0.92;
-    setStatus("speaking");
-    utterance.onstart = () => setStatus("speaking");
-    utterance.onend = () => setStatus("idle");
-    utterance.onerror = () => setStatus("idle");
-    const voice = voiceRef.current ?? selectSunnyFemaleVoice(window.speechSynthesis.getVoices());
-    if (voice) utterance.voice = voice;
-    window.speechSynthesis.speak(utterance);
+    speakChineseAutomatically(text, {
+      onStart: () => setStatus("speaking"),
+      onEnd: () => setStatus("idle"),
+    });
   };
 
   const answer = async (question: string) => {
     const cleaned = question.trim();
     if (!cleaned || status === "thinking") return;
-    window.speechSynthesis?.cancel();
+    stopSpeech();
+    if (speechEnabled) primeSpeechSynthesis();
     setVoiceError("");
     const history = messages.slice(-8);
     setMessages((current) => [...current, { id: messageId.current++, role: "user", text: cleaned }]);
@@ -364,28 +295,17 @@ export default function XiaoJianPet() {
     }
     if (status === "thinking") return;
 
-    window.speechSynthesis?.cancel();
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Recognition) return;
-    const recognition = new Recognition();
-    recognition.lang = "zh-CN";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.onresult = (event) => {
-      const transcript = event.results[0]?.[0]?.transcript ?? "";
+    stopSpeech();
+    if (speechEnabled) primeSpeechSynthesis();
+    recognitionRef.current = startChineseDictation({
+      onText: (transcript) => {
       setInput(transcript);
       setStatus("idle");
       answer(transcript);
-    };
-    recognition.onerror = (event) => {
-      setVoiceError(event.error === "not-allowed" ? "麦克风权限未开启，请在浏览器设置中允许访问。" : "没有听清，请再试一次或使用文字输入。");
-      setStatus("idle");
-    };
-    recognition.onend = () => setStatus((current) => current === "listening" ? "idle" : current);
-    recognitionRef.current = recognition;
-    setVoiceError("");
-    setStatus("listening");
-    recognition.start();
+      },
+      onListening: (listening) => setStatus(listening ? "listening" : "idle"),
+      onError: setVoiceError,
+    });
   };
 
   const startDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {

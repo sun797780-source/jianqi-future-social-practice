@@ -1,11 +1,9 @@
 import { useRef, useState } from "react";
 import { ArrowLeft, Droplets, Leaf, LoaderCircle, MessageCircle, Mic, MicOff, Sprout, Wheat, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { primeSpeechSynthesis, speakChineseAutomatically, startChineseDictation, stopSpeech, supportsSpeechRecognition } from "@/lib/voiceRuntime";
 
 type RuralTopic = "water" | "grain" | "energy";
-
-type RuralSpeechEvent = Event & { results: ArrayLike<{ 0: { transcript: string } }> };
-type RuralSpeechError = Event & { error: string };
 
 const topicOptions: Array<{ id: RuralTopic; label: string; description: string; icon: typeof Droplets }> = [
   { id: "water", label: "灌溉节水", description: "让每一滴水都用在作物上", icon: Droplets },
@@ -63,32 +61,23 @@ export default function RuralActionStation() {
       setListening(false);
       return;
     }
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Recognition) {
-      setVoiceError("当前浏览器不支持语音输入，请直接输入文字。");
+    if (!supportsSpeechRecognition()) {
+      setVoiceError("当前微信版本不支持网页语音识别，请更新微信或改用文字输入。");
       return;
     }
-    const recognition = new Recognition();
-    recognition.lang = "zh-CN";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.onresult = (event: RuralSpeechEvent) => {
-      const transcript = event.results[0]?.[0]?.transcript ?? "";
+    stopSpeech();
+    primeSpeechSynthesis();
+    recognitionRef.current = startChineseDictation({
+      onText: (transcript) => {
       setDetails((current) => current ? `${current} ${transcript}` : transcript);
-      setListening(false);
-    };
-    recognition.onerror = (event: RuralSpeechError) => {
-      setVoiceError(event.error === "not-allowed" ? "麦克风权限未开启，请允许浏览器访问麦克风。" : "没有听清，请再试一次或改用文字输入。");
-      setListening(false);
-    };
-    recognition.onend = () => setListening(false);
-    recognitionRef.current = recognition;
-    setVoiceError("");
-    setListening(true);
-    recognition.start();
+      },
+      onListening: setListening,
+      onError: setVoiceError,
+    });
   };
 
   const askXiaoJian = async () => {
+    primeSpeechSynthesis();
     setStatus("loading");
     const message = `请作为乡村资源配置顾问，帮助一位种植${crop}的农户。基本情况：面积${acreage ? `${acreage}亩` : "未提供面积"}，生长阶段${stage}，主要资源来源${resourceSource}，当前重点${topicOptions.find((item) => item.id === topic)?.label}。现场补充情况：${details || "暂未补充，请先围绕当前重点给出排查框架"}。请输出五部分：1. 已知资源与问题盘点；2. 资源分配优先级，明确先保障什么、什么可以延后；3. 今天能执行的分区或分批方案；4. 接下来7天要记录的指标；5. 需要当地农技人员确认的风险。请逐条回应我补充的每个问题，只使用我提供的信息，不要编造天气、土壤数据、产量、节省金额或当地政策；涉及病虫害、用药、井水安全和设备安全时必须提醒专业确认。核心目标是合理分配已有资源、减少损耗，不是简单地减少投入。`;
     try {
@@ -117,9 +106,12 @@ export default function RuralActionStation() {
       if (!isSafeRuralAdvice(cleanReply)) throw new Error("AI reply failed rural safety validation");
       setAdvice(cleanReply);
       setMode("online");
+      speakChineseAutomatically(cleanReply);
     } catch {
-      setAdvice(fallbackAdvice(topic, crop, details, acreage, stage));
+      const fallback = fallbackAdvice(topic, crop, details, acreage, stage);
+      setAdvice(fallback);
       setMode("local");
+      speakChineseAutomatically(fallback);
     } finally {
       setStatus("done");
     }
