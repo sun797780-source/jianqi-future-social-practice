@@ -61,8 +61,15 @@ router.get('/access-url', (req: Request, res: Response): void => {
   }
   const portValue = Number(req.query.port)
   const port = Number.isInteger(portValue) && portValue > 0 && portValue <= 65535 ? portValue : 5173
-  const addresses = Object.values(networkInterfaces()).flat().filter((address) => address?.family === 'IPv4' && !address.internal)
-  const preferred = addresses.find((address) => /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(address?.address ?? '')) ?? addresses[0]
+  // Link-local addresses (169.254.x.x) are not stable phone-accessible LAN
+  // addresses. They can appear first when Windows has no active network and
+  // were previously ending up in the QR code. Prefer a private LAN address;
+  // otherwise keep the host used to open the management page.
+  const addresses = Object.values(networkInterfaces()).flat().filter((address) => {
+    const value = address?.address ?? ''
+    return address?.family === 'IPv4' && !address.internal && !value.startsWith('169.254.')
+  })
+  const preferred = addresses.find((address) => /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(address?.address ?? ''))
   const protocol = req.secure || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http'
   const origin = preferred ? `${protocol}://${preferred.address}:${port}` : `${protocol}://${req.hostname}:${port}`
   res.status(200).json({ success: true, data: { origin, source: preferred ? 'local-network' : 'request-host' } })
