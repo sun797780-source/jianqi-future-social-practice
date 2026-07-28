@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
-import { ArrowLeft, Droplets, Leaf, LoaderCircle, MessageCircle, Mic, MicOff, Sprout, Volume2, Wheat, Zap } from "lucide-react";
+import { ArrowLeft, Droplets, Leaf, LoaderCircle, MessageCircle, Mic, MicOff, Sprout, Wheat, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { canSpeak, speakChinese } from "@/lib/speech";
 
 type RuralTopic = "water" | "grain" | "energy";
 
@@ -51,7 +50,6 @@ export default function RuralActionStation() {
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState("");
   const recognitionRef = useRef<{ stop: () => void } | null>(null);
-  const detailsRef = useRef<HTMLTextAreaElement>(null);
 
   const selectTopic = (nextTopic: RuralTopic) => {
     setTopic(nextTopic);
@@ -67,8 +65,7 @@ export default function RuralActionStation() {
     }
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) {
-      setVoiceError("微信内置浏览器通常不提供网页录音识别，请点击输入框，使用微信键盘上的麦克风输入。");
-      detailsRef.current?.focus();
+      setVoiceError("当前浏览器不支持语音输入，请直接输入文字。");
       return;
     }
     const recognition = new Recognition();
@@ -88,12 +85,7 @@ export default function RuralActionStation() {
     recognitionRef.current = recognition;
     setVoiceError("");
     setListening(true);
-    try {
-      recognition.start();
-    } catch {
-      setListening(false);
-      setVoiceError("麦克风启动失败，请改用微信键盘语音输入。");
-    }
+    recognition.start();
   };
 
   const askXiaoJian = async () => {
@@ -162,7 +154,7 @@ export default function RuralActionStation() {
           <label><span>种植面积（亩）</span><input inputMode="decimal" value={acreage} onChange={(event) => setAcreage(event.target.value.replace(/[^0-9.]/g, ""))} placeholder="可选，例如 12" /></label>
           <label><span>当前生长阶段</span><select value={stage} onChange={(event) => setStage(event.target.value)}>{stageOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
           <label><span>主要资源来源</span><select value={resourceSource} onChange={(event) => setResourceSource(event.target.value)}>{sourceOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
-          <label className="rural-details-field"><span>田里还有哪些具体情况？</span><textarea ref={detailsRef} value={details} onChange={(event) => setDetails(event.target.value)} maxLength={500} placeholder="例如：东边地块灌完水后积水，西边沟渠有渗漏；去年有一批粮食受潮，今年想知道怎么分开检查。" /></label>
+          <label className="rural-details-field"><span>田里还有哪些具体情况？</span><textarea value={details} onChange={(event) => setDetails(event.target.value)} maxLength={500} placeholder="例如：东边地块灌完水后积水，西边沟渠有渗漏；去年有一批粮食受潮，今年想知道怎么分开检查。" /></label>
           <div className="rural-voice-row"><button type="button" className={listening ? "rural-voice-button listening" : "rural-voice-button"} onClick={toggleListening} aria-label={listening ? "停止语音输入" : "开始语音输入"} title={listening ? "停止语音输入" : "语音输入"}>{listening ? <MicOff size={18} /> : <Mic size={18} />}<span>{listening ? "正在听，请说完后停止" : "语音补充情况"}</span></button><small>{details.length}/500{voiceError && <b>{voiceError}</b>}</small></div>
           <button type="button" className="rural-ask-button" onClick={askXiaoJian} disabled={status === "loading"}>{status === "loading" ? <LoaderCircle className="rural-spin" size={18} /> : <MessageCircle size={18} />} {status === "loading" ? "小俭正在整理方案" : "生成资源分配方案"}</button>
         </div>
@@ -170,7 +162,7 @@ export default function RuralActionStation() {
 
       <section className="rural-advice-section">
         <div className="rural-section-heading"><div><span>02 / 小俭的农事建议</span><h2>{advice ? `${crop} · ${topicOptions.find((item) => item.id === topic)?.label}` : "先选择一个问题，再开始诊断"}</h2></div>{advice && <em className={mode === "local" ? "local" : ""}>{mode === "local" ? "本地核验建议" : "小俭 AI 已结合当前问题"}</em>}</div>
-        {advice ? <article className="rural-advice-card"><div className="rural-advice-mark"><Wheat size={26} /><span>小俭</span></div><div className="rural-advice-copy"><p>{advice}</p><button type="button" className="rural-speak-button" onClick={() => canSpeak() ? speakChinese(advice) : setVoiceError("当前微信浏览器不支持网页朗读，请在系统浏览器打开后使用语音播报。")} disabled={!canSpeak()}><Volume2 size={16} /> 朗读这份建议</button></div></article> : <div className="rural-advice-empty"><MessageCircle size={22} /><span>例如：选择“灌溉节水”后，小俭会帮你梳理检查漏点、安排分区轮灌和记录用水的方法。</span></div>}
+        {advice ? <article className="rural-advice-card"><div className="rural-advice-mark"><Wheat size={26} /><span>小俭</span></div><p>{advice}</p></article> : <div className="rural-advice-empty"><MessageCircle size={22} /><span>例如：选择“灌溉节水”后，小俭会帮你梳理检查漏点、安排分区轮灌和记录用水的方法。</span></div>}
       </section>
 
     </main>

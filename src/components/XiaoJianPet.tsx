@@ -3,7 +3,6 @@ import { ChevronDown, Mic, MicOff, Send, Sparkles, Volume2, VolumeX, X } from "l
 import { useLocation } from "react-router-dom";
 import { getAudiencePractice } from "@/lib/content";
 import XiaoJianAvatar3D from "@/components/XiaoJianAvatar3D";
-import { canSpeak, speakChinese } from "@/lib/speech";
 
 type SpeechRecognitionEventLike = Event & {
   results: ArrayLike<{ 0: { transcript: string } }>;
@@ -185,7 +184,7 @@ export default function XiaoJianPet() {
   const requestRef = useRef<AbortController | null>(null);
 
   const recognitionSupported = typeof window !== "undefined" && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
-  const speechSupported = canSpeak();
+  const speechSupported = typeof window !== "undefined" && "speechSynthesis" in window;
   const busy = status === "thinking";
   const dockLeft = position.x < window.innerWidth / 2;
   const dialogWidth = Math.min(390, window.innerWidth - 32);
@@ -253,20 +252,25 @@ export default function XiaoJianPet() {
   }, []);
 
   const speak = (text: string) => {
+    const spokenText = cleanAssistantText(text);
     if (!speechEnabled || !speechSupported) {
       setStatus("idle");
       return;
     }
-    const started = speakChinese(text, () => setStatus("speaking"), () => setStatus("idle"));
-    if (started) setStatus("speaking");
-  };
-
-  const readMessage = (text: string) => {
-    if (!speechSupported) {
-      setVoiceError("当前微信浏览器不支持网页朗读，请在系统浏览器打开后使用语音播报。");
-      return;
-    }
-    speakChinese(text, () => setStatus("speaking"), () => setStatus("idle"));
+    if (!spokenText) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(spokenText);
+    utterance.lang = "zh-CN";
+    utterance.rate = 1.08;
+    utterance.pitch = 1.16;
+    utterance.volume = 0.92;
+    setStatus("speaking");
+    utterance.onstart = () => setStatus("speaking");
+    utterance.onend = () => setStatus("idle");
+    utterance.onerror = () => setStatus("idle");
+    const voice = voiceRef.current ?? selectSunnyFemaleVoice(window.speechSynthesis.getVoices());
+    if (voice) utterance.voice = voice;
+    window.speechSynthesis.speak(utterance);
   };
 
   const answer = async (question: string) => {
@@ -351,8 +355,7 @@ export default function XiaoJianPet() {
 
   const toggleListening = () => {
     if (!recognitionSupported) {
-      setVoiceError("微信内置浏览器通常不提供网页录音识别，请点击输入框，使用微信键盘上的麦克风输入。");
-      inputRef.current?.focus();
+      setVoiceError("当前浏览器不支持语音识别，请使用文字输入。Chrome 或 Edge 的支持通常更好。");
       return;
     }
     if (status === "listening") {
@@ -382,12 +385,7 @@ export default function XiaoJianPet() {
     recognitionRef.current = recognition;
     setVoiceError("");
     setStatus("listening");
-    try {
-      recognition.start();
-    } catch {
-      setStatus("idle");
-      setVoiceError("麦克风启动失败，请改用微信键盘语音输入。");
-    }
+    recognition.start();
   };
 
   const startDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -452,7 +450,7 @@ export default function XiaoJianPet() {
           </header>
           <div className="pet-status-line" role="status"><i />{statusLabels[status]}</div>
           <div className="pet-message-log" ref={logRef} aria-live="polite">
-            {messages.slice(-10).map((message) => <div key={message.id} className={`pet-message ${message.role}`}><span>{message.role === "pet" ? "小俭" : "你"}</span><div><p>{message.text}</p>{message.role === "pet" && <button type="button" className="pet-read-button" onClick={() => readMessage(message.text)} disabled={!speechSupported}><Volume2 size={13} /> 朗读</button>}</div></div>)}
+            {messages.slice(-10).map((message) => <div key={message.id} className={`pet-message ${message.role}`}><span>{message.role === "pet" ? "小俭" : "你"}</span><p>{message.text}</p></div>)}
             {status === "thinking" && <div className="pet-message pet pet-thinking"><span>小俭</span><p><i /><i /><i /></p></div>}
           </div>
           <div className="pet-quick-questions">
