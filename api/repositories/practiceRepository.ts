@@ -232,7 +232,7 @@ class PracticeRepository {
   // Vercel functions have an ephemeral/read-only deployment filesystem. Keep
   // the demo store in the warm function instance there instead of making the
   // public survey fail with a 503 when the JSON snapshot cannot be written.
-  private readonly memoryOnly = Boolean(process.env.VERCEL)
+  private readonly memoryOnly = Boolean(process.env.VERCEL || process.env.VERCEL_ENV || process.env.NOW_REGION)
   private storePromise?: Promise<PracticeStore>
   private writeQueue: Promise<void> = Promise.resolve()
 
@@ -340,6 +340,14 @@ class PracticeRepository {
     return this.mutate((store) => {
       const survey = store.communitySurveys.find((item) => item.id === id.toUpperCase())
       if (!survey) return undefined
+      if (!Array.isArray(store.communitySurveyResponses)) store.communitySurveyResponses = []
+      if (!Array.isArray(survey.counts) || survey.counts.length !== survey.questions.length) {
+        survey.counts = survey.questions.map((question) => question.options.map(() => 0))
+      }
+      survey.counts = survey.questions.map((question, questionIndex) => {
+        const row = survey.counts[questionIndex]
+        return Array.isArray(row) && row.length === question.options.length ? row : question.options.map(() => 0)
+      })
       const participantHash = createHash('sha256').update(`${survey.id}:survey:${participantId}`).digest('hex')
       const existing = store.communitySurveyResponses.find((item) => item.surveyId === survey.id && item.participantHash === participantHash)
       if (existing) return { survey: structuredClone(survey), deduplicated: true }
